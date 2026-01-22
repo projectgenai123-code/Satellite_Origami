@@ -1,0 +1,9 @@
+# Ignore processed/generated data
+data/processed_images/
+
+# Ignore Windows system files
+desktop.ini
+
+# Python cache
+__pycache__/
+*.pyc
