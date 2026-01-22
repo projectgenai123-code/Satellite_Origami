@@ -1,9 +1,11 @@
 # Ignore processed/generated data
 data/processed_images/
 
-# Ignore Windows system files
-desktop.ini
+# Ignore large datasets
+*.hdf5
+CreasePatternDataset/
 
-# Python cache
+# Ignore OS / Python junk
+desktop.ini
 __pycache__/
 *.pyc
