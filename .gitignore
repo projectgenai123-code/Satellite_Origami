@@ -1,11 +1,11 @@
-# Ignore processed/generated data
+# Ignore generated images
 data/processed_images/
 
-# Ignore large datasets
+# Ignore datasets
 *.hdf5
 CreasePatternDataset/
 
-# Ignore OS / Python junk
+# Ignore system/python junk
 desktop.ini
 __pycache__/
 *.pyc
