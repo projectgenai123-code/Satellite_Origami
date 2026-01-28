@@ -1,0 +1,114 @@
+import torch
+import torch.nn as nn
+from torchvision import transforms
+from PIL import Image
+from pathlib import Path
+from collections import Counter
+
+# ==============================
+# DEVICE
+# ==============================
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+print(f"Using device: {device}")
+
+# ==============================
+# PATHS
+# ==============================
+BASE_DIR = Path(__file__).resolve().parent
+MODEL_PATH = BASE_DIR / "trained_model.pth"
+VAL_DIR = BASE_DIR / "data" / "processed_images_split" / "val"
+
+if not MODEL_PATH.exists():
+    raise FileNotFoundError(f"❌ Model not found: {MODEL_PATH}")
+
+if not VAL_DIR.exists():
+    raise FileNotFoundError(f"❌ Validation folder not found: {VAL_DIR}")
+
+# ==============================
+# MODEL (MUST MATCH TRAINING)
+# ==============================
+class SimpleCNN(nn.Module):
+    def __init__(self):
+        super().__init__()
+
+        self.features = nn.Sequential(
+            nn.Conv2d(1, 16, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.MaxPool2d(2),
+
+            nn.Conv2d(16, 32, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.MaxPool2d(2),
+        )
+
+        # DO NOT hardcode feature size
+        self.classifier = nn.LazyLinear(2)
+
+    def forward(self, x):
+        x = self.features(x)
+        x = torch.flatten(x, 1)
+        return self.classifier(x)
+
+# ==============================
+# LOAD MODEL (CRITICAL ORDER)
+# ==============================
+model = SimpleCNN().to(device)
+
+# 🔑 Initialize LazyLinear with SAME size used in training
+dummy_input = torch.zeros(1, 1, 128, 128).to(device)
+model(dummy_input)
+
+# Load trained weights
+model.load_state_dict(
+    torch.load(MODEL_PATH, map_location=device, weights_only=True)
+)
+
+model.eval()
+print("✅ Model loaded successfully")
+
+# ==============================
+# TRANSFORM (MUST MATCH TRAINING)
+# ==============================
+transform = transforms.Compose([
+    transforms.Grayscale(num_output_channels=1),
+    transforms.Resize((128, 128)),   # 🔥 MUST BE 128
+    transforms.ToTensor(),
+])
+
+# ==============================
+# LOAD VALIDATION IMAGES
+# ==============================
+image_paths = [
+    p for p in VAL_DIR.iterdir()
+    if p.suffix.lower() in [".png", ".jpg", ".jpeg"]
+]
+
+if len(image_paths) == 0:
+    raise RuntimeError("❌ No validation images found")
+
+print(f"Found {len(image_paths)} validation images")
+
+# ==============================
+# PREDICTION
+# ==============================
+predictions = []
+
+with torch.no_grad():
+    for img_path in image_paths:
+        image = Image.open(img_path).convert("RGB")
+        image = transform(image).unsqueeze(0).to(device)
+
+        outputs = model(image)
+        pred = torch.argmax(outputs, dim=1).item()
+        predictions.append(pred)
+
+# ==============================
+# RESULTS
+# ==============================
+counts = Counter(predictions)
+
+print("\n📊 Prediction Summary:")
+for cls, count in sorted(counts.items()):
+    print(f"Class {cls}: {count} images")
+
+print("\n✅ Prediction completed successfully!")
